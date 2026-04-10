@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bayer – Dashboard Farmacias</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundled.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap');
+
+:root {
+  --blue:   #003865;
+  --teal:   #00BCDD;
+  --lime:   #A5CD39;
+  --dark:   #001E3C;
+  --mid:    #0057A8;
+  --light:  #E8F4FB;
+  --accent: #FF6B35;
+  --red:    #CC0000;
+  --t1:     #0D1B2A;
+  --t2:     #4A6070;
+  --surf:   #F4F8FC;
+  --card:   #FFFFFF;
+  --bord:   rgba(0,56,101,.12);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Barlow',sans-serif;background:var(--surf);color:var(--t1);min-height:100vh}
+
+/* HEADER */
+header{background:var(--dark);display:flex;align-items:stretch;position:sticky;top:0;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.35)}
+.hbar{width:6px;background:linear-gradient(180deg,var(--teal),var(--lime));flex-shrink:0}
+.hcontent{display:flex;align-items:center;padding:12px 24px;gap:18px;flex:1;flex-wrap:wrap}
+.htitles h1{font-family:'Barlow Condensed',sans-serif;font-size:1.45rem;font-weight:800;color:#fff;letter-spacing:.03em;line-height:1}
+.htitles p{font-size:.75rem;color:var(--teal);font-weight:500;letter-spacing:.07em;text-transform:uppercase}
+.hright{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.period-badge{background:rgba(0,188,221,.18);border:1px solid rgba(0,188,221,.35);color:var(--teal);padding:5px 12px;border-radius:20px;font-size:.72rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+
+/* DATE FILTER PANEL */
+.filter-panel{background:var(--blue);padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-bottom:2px solid rgba(0,188,221,.2)}
+.filter-panel label{font-family:'Barlow Condensed',sans-serif;font-size:.85rem;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.06em}
+.date-input{background:rgba(255,255,255,.1);border:1.5px solid rgba(0,188,221,.35);color:#fff;padding:7px 12px;border-radius:8px;font-family:'Barlow',sans-serif;font-size:.85rem;cursor:pointer}
+.date-input::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.7}
+.btn-filter{background:linear-gradient(135deg,var(--teal),var(--mid));color:#fff;border:none;padding:8px 20px;border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem;font-weight:700;letter-spacing:.06em;cursor:pointer;text-transform:uppercase;transition:transform .15s,box-shadow .15s}
+.btn-filter:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,188,221,.4)}
+.btn-download{background:linear-gradient(135deg,#006632,#009944);color:#fff;border:none;padding:8px 20px;border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem;font-weight:700;letter-spacing:.06em;cursor:pointer;display:flex;align-items:center;gap:8px;text-transform:uppercase;transition:transform .15s,box-shadow .15s}
+.btn-download:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,150,60,.4)}
+.btn-download svg{width:15px;height:15px}
+.filter-info{color:var(--teal);font-size:.8rem;font-weight:600;margin-left:auto}
+.source-toggle{display:flex;align-items:center;gap:8px;color:rgba(255,255,255,.6);font-size:.75rem}
+.source-toggle select{background:rgba(255,255,255,.1);border:1px solid rgba(0,188,221,.3);color:#fff;padding:4px 8px;border-radius:6px;font-size:.75rem}
+.source-toggle select option{background:var(--blue);color:#fff}
+
+/* TABS */
+.tabs{background:var(--dark);display:flex;padding:0 24px;gap:0;border-bottom:1px solid rgba(0,188,221,.15)}
+.tab{padding:11px 22px;color:rgba(255,255,255,.5);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.92rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;user-select:none}
+.tab:hover{color:rgba(255,255,255,.8)}
+.tab.active{color:var(--teal);border-bottom-color:var(--teal)}
+
+/* LOADING */
+#loading-overlay{display:none;position:fixed;inset:0;background:rgba(0,30,60,.85);z-index:999;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+#loading-overlay.show{display:flex}
+.spinner{width:44px;height:44px;border:4px solid rgba(0,188,221,.3);border-top-color:var(--teal);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-text{color:var(--teal);font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:700;letter-spacing:.08em}
+
+main{padding:22px;max-width:1450px;margin:0 auto}
+.section{display:none}
+.section.active{display:block}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:22px}
+.kpi-card{background:var(--card);border-radius:12px;padding:18px;border:1px solid var(--bord);position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--teal),var(--lime))}
+.kpi-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;font-size:1rem}
+.ki-b{background:rgba(0,87,168,.12)}.ki-t{background:rgba(0,188,221,.12)}.ki-l{background:rgba(165,205,57,.15)}.ki-o{background:rgba(255,107,53,.12)}
+.kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:1.9rem;font-weight:800;color:var(--dark);line-height:1}
+.kpi-lbl{font-size:.7rem;color:var(--t2);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+.kpi-sub{font-size:.74rem;color:var(--teal);margin-top:5px;font-weight:600}
+
+/* CHARTS */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px}
+.chart-card{background:var(--card);border-radius:12px;padding:20px;border:1px solid var(--bord);box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.chart-card.full{grid-column:1/-1}
+.ct{font-family:'Barlow Condensed',sans-serif;font-size:.95rem;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.cs{font-size:.72rem;color:var(--t2);margin-bottom:14px}
+.cw{position:relative;height:210px}
+.cw.tall{height:280px}
+.cw.mid{height:170px}
+
+/* TABLE */
+.table-card{background:var(--card);border-radius:12px;padding:20px;border:1px solid var(--bord);box-shadow:0 2px 8px rgba(0,0,0,.05);margin-bottom:20px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{text-align:left;padding:9px 12px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--blue);border-bottom:2px solid var(--bord);background:var(--surf)}
+td{padding:9px 12px;border-bottom:1px solid var(--bord);color:var(--t1);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--light)}
+.badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:.68rem;font-weight:700;letter-spacing:.04em}
+.bh{background:rgba(165,205,57,.2);color:#4a6e00}.bm{background:rgba(0,188,221,.15);color:#005f75}.bl{background:rgba(255,107,53,.15);color:#b83a0e}
+
+/* PROGRESS */
+.prog-bar{background:var(--surf);border-radius:4px;height:7px;overflow:hidden;flex:1}
+.prog-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--teal),var(--lime));transition:width .6s ease}
+.prog-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.prog-lbl{font-size:.75rem;min-width:130px;color:var(--t1);font-weight:500}
+.prog-pct{font-size:.75rem;font-weight:700;color:var(--blue);min-width:36px;text-align:right}
+
+/* EMP CARDS */
+.emp-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px}
+.emp-card{background:var(--card);border-radius:12px;padding:20px;border:1px solid var(--bord);box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.emp-hdr{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--bord)}
+.emp-av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:800;flex-shrink:0}
+.emp-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.95rem;color:var(--blue)}
+.emp-role{font-size:.68rem;color:var(--t2);text-transform:uppercase;letter-spacing:.06em}
+.emp-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.esv{font-family:'Barlow Condensed',sans-serif;font-size:1.5rem;font-weight:800;color:var(--dark)}
+.esl{font-size:.65rem;color:var(--t2);text-transform:uppercase;letter-spacing:.05em}
+
+/* PAGINATION */
+.pagination{display:flex;align-items:center;gap:8px;margin-top:12px;justify-content:flex-end}
+.pg-btn{padding:5px 12px;border:1.5px solid var(--bord);background:var(--card);border-radius:6px;font-size:.75rem;font-weight:600;cursor:pointer;color:var(--t2);transition:all .15s}
+.pg-btn:hover,.pg-btn.active{border-color:var(--teal);color:var(--blue);background:var(--light)}
+.pg-info{font-size:.75rem;color:var(--t2)}
+
+@media(max-width:768px){
+  .charts-grid,.emp-grid{grid-template-columns:1fr}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  main{padding:12px}
+}
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="load-text">CARGANDO DATOS...</div>
+</div>
+
+<header>
+  <div class="hbar"></div>
+  <div class="hcontent">
+    <svg width="42" height="42" viewBox="0 0 46 46" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="23" cy="23" r="23" fill="#CC0000"/>
+      <text x="23" y="30" text-anchor="middle" font-family="Arial" font-weight="900" font-size="12" fill="white">BAYER</text>
+      <line x1="23" y1="5" x2="23" y2="41" stroke="white" stroke-width="2.5"/>
+      <line x1="5" y1="23" x2="41" y2="23" stroke="white" stroke-width="2.5"/>
+    </svg>
+    <div class="htitles">
+      <h1>BAYER · DASHBOARD FARMACIAS</h1>
+      <p>Seguimiento de Visitas y Ofertas · 2026</p>
+    </div>
+    <div class="hright">
+      <span id="source-badge" style="font-size:.72rem;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid var(--teal);color:var(--teal);letter-spacing:.04em">⏳ Cargando...</span>
+      <span class="period-badge" id="period-label">📅 Todos los datos</span>
+    </div>
+  </div>
+</header>
+
+<!-- DATE FILTER BAR -->
+<div class="filter-panel">
+  <label>Desde</label>
+  <input type="date" id="date-from" class="date-input" value="2026-04-01">
+  <label>Hasta</label>
+  <input type="date" id="date-to" class="date-input" value="2026-04-09">
+  <button class="btn-filter" onclick="applyFilter()">🔍 Aplicar Filtro</button>
+  <button class="btn-filter" style="background:rgba(255,255,255,.15)" onclick="clearFilter()">✕ Ver Todo</button>
+  <button class="btn-filter" style="background:rgba(0,188,221,.25)" onclick="reloadSheets()" title="Recargar datos desde Google Sheets">🔄 Actualizar Sheets</button>
+  <span class="filter-info" id="filter-info"></span>
+  <button class="btn-download" onclick="downloadPPT()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Descargar PPT
+  </button>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('checkin',this)">📍 Check-in / Check-out</div>
+  <div class="tab" onclick="switchTab('ofertas',this)">🏷️ Ofertas en Farmacias</div>
+</div>
+
+<main>
+
+<!-- ══ TAB CHECK-IN ══ -->
+<div class="section active" id="sec-checkin">
+
+  <div class="kpi-grid" id="kpi-ci"></div>
+
+  <div class="emp-grid" id="emp-cards"></div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="ct">Visitas por Día</div>
+      <div class="cs">Visitas en el rango seleccionado</div>
+      <div class="cw"><canvas id="cVisitasDia"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="ct">Visitas por Promotor</div>
+      <div class="cs">Comparativo entre promotores</div>
+      <div class="cw"><canvas id="cVisitasEmp"></canvas></div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="ct">Distribución por Ciudad</div>
+      <div class="cs">Cantidad de visitas por ciudad</div>
+      <div class="cw tall"><canvas id="cCiudad"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="ct">Tiempo Promedio en PDV</div>
+      <div class="cs">Minutos promedio por promotor</div>
+      <div class="cw mid"><canvas id="cTiempo"></canvas></div>
+      <div style="margin-top:16px" id="prog-tiempos"></div>
+    </div>
+  </div>
+
+  <!-- TABLA CHECKIN -->
+  <div class="table-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div class="ct">Detalle Check-in / Check-out</div>
+        <div class="cs" id="ci-table-sub">Registro completo de visitas a farmacias</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="ci-search" placeholder="Buscar PDV, ciudad..." style="padding:6px 12px;border:1.5px solid var(--bord);border-radius:8px;font-size:.8rem;width:200px">
+        <select id="ci-emp-filter" style="padding:6px 10px;border:1.5px solid var(--bord);border-radius:8px;font-size:.8rem;color:var(--t1)">
+          <option value="">Todos los promotores</option>
+          <option value="FELIX">Felix Recalde</option>
+          <option value="MARCELO">Marcelo Meza</option>
+        </select>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Promotor</th>
+          <th>Punto de Venta</th>
+          <th>Ciudad</th>
+          <th>Check-in</th>
+          <th>Check-out</th>
+          <th>Tiempo</th>
+        </tr>
+      </thead>
+      <tbody id="ci-table-body"></tbody>
+    </table>
+    <div class="pagination" id="ci-pagination"></div>
+  </div>
+
+</div>
+
+<!-- ══ TAB OFERTAS ══ -->
+<div class="section" id="sec-ofertas">
+
+  <div class="kpi-grid" id="kpi-of"></div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="ct">% Farmacias con Oferta por Marca</div>
+      <div class="cs">Presencia de ofertas activas en el período</div>
+      <div class="cw tall"><canvas id="cOfertasMarca"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="ct">Encuestas por Día</div>
+      <div class="cs">Volumen de relevamiento en el período</div>
+      <div class="cw mid"><canvas id="cEncDia"></canvas></div>
+      <div style="margin-top:16px">
+        <div class="ct" style="font-size:.8rem;margin-bottom:10px">Tipos de Descuento</div>
+        <div id="prog-descuentos"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLA OFERTAS -->
+  <div class="table-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div class="ct">Detalle de Ofertas por Farmacia</div>
+        <div class="cs" id="of-table-sub">Relevamiento de precios y promociones</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="of-search" placeholder="Buscar marca, PDV..." style="padding:6px 12px;border:1.5px solid var(--bord);border-radius:8px;font-size:.8rem;width:200px">
+        <select id="of-emp-filter" style="padding:6px 10px;border:1.5px solid var(--bord);border-radius:8px;font-size:.8rem;color:var(--t1)">
+          <option value="">Todos los promotores</option>
+          <option value="FELIX">Felix Recalde</option>
+          <option value="MARCELO">Marcelo Meza</option>
+        </select>
+        <select id="of-oferta-filter" style="padding:6px 10px;border:1.5px solid var(--bord);border-radius:8px;font-size:.8rem;color:var(--t1)">
+          <option value="">Todas</option>
+          <option value="1">Con Oferta</option>
+          <option value="0">Sin Oferta</option>
+        </select>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Promotor</th>
+          <th>Punto de Venta</th>
+          <th>Ciudad</th>
+          <th>Marca</th>
+          <th>Valor/Oferta</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody id="of-table-body"></tbody>
+    </table>
+    <div class="pagination" id="of-pagination"></div>
+  </div>
+
+</div>
+</main>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  CONFIGURACIÓN GOOGLE SHEETS
+//  ─────────────────────────────────────────────────────────────
+//  La URL base es tu hoja publicada como CSV.
+//  Cada pestaña tiene un "gid" (número al final de la URL cuando
+//  la abrís en el navegador: ?gid=XXXXXXX).
+//
+//  Cómo encontrar el gid de cada pestaña:
+//   1. Abrí el Google Sheet en el navegador
+//   2. Hacé clic en la pestaña "checkin - checkout" → mirá la URL → copiá el número después de "#gid="
+//   3. Repetí para la pestaña "ofertas"
+//   4. Reemplazá los valores de GID_CI y GID_OF abajo
+//
+//  Mientras tanto, el dashboard prueba gid=0 y gid=1 automáticamente.
+// ══════════════════════════════════════════════════════════════
+const SHEETS_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRHeJa54RL4klxHs-xpY6rcBesFHwFMtyMIddD0B2xWvbN7TxGEklcCNB8o4KFTUSM-Ymnf4LkEhENl/pub?output=csv';
+
+// ← Reemplazá estos valores con los gid reales de tu Sheets
+const GID_CI = 1442986623; // gid de la pestaña "checkin - checkout" (productividad)
+const GID_OF = 746321072;  // gid de la pestaña "ofertas"
+
+const SHEETS_URL_CI = `${SHEETS_BASE}&gid=${GID_CI}`;
+const SHEETS_URL_OF = `${SHEETS_BASE}&gid=${GID_OF}`;
+
+// ── GLOBAL STATE ──────────────────────────────────────────────
+let RAW_CI = [], RAW_OF = [];
+let filteredCI = [], filteredOF = [];
+let ciPage = 1, ofPage = 1;
+const PAGE_SIZE = 50;
+let charts = {};
+let currentTab = 'checkin';
+let dataSource = ''; // 'sheets' o 'local'
+
+// ── FETCH CON TIMEOUT ─────────────────────────────────────────
+async function fetchWithTimeout(url, ms = 8000) {
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(tid);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.text();
+  } catch(e) {
+    clearTimeout(tid);
+    throw e;
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+async function init() {
+  showLoading(true);
+  setSourceBadge('⏳ Conectando a Sheets...', '#A0B8C8');
+
+  let sheetsOK = false;
+
+  // 1️⃣  Intentar Google Sheets (ambas hojas en paralelo)
+  try {
+    const [csvCI, csvOF] = await Promise.all([
+      fetchWithTimeout(SHEETS_URL_CI),
+      fetchWithTimeout(SHEETS_URL_OF),
+    ]);
+    const parsedCI = parseCSV_CI(csvCI);
+    const parsedOF = parseCSV_OF(csvOF);
+
+    // Validar que tenga datos reales (no solo encabezados)
+    if (parsedCI.length > 0 && parsedOF.length > 0) {
+      RAW_CI = parsedCI;
+      RAW_OF = parsedOF;
+      sheetsOK = true;
+      dataSource = 'sheets';
+      setSourceBadge('🟢 Google Sheets (tiempo real)', 'var(--lime)');
+    }
+  } catch(e) {
+    console.warn('Google Sheets no disponible, usando datos locales:', e.message);
+  }
+
+  // 2️⃣  Fallback a JSON locales (del Excel)
+  if (!sheetsOK) {
+    try {
+      const [rCI, rOF] = await Promise.all([
+        fetch('checkin_data.json'),
+        fetch('ofertas_data.json'),
+      ]);
+      RAW_CI = await rCI.json();
+      RAW_OF = await rOF.json();
+      dataSource = 'local';
+      setSourceBadge('🟡 Datos locales (Excel)', '#FFC107');
+    } catch(e2) {
+      console.error('No se pudieron cargar los datos:', e2);
+      setSourceBadge('🔴 Error al cargar datos', '#FF6B35');
+      showLoading(false);
+      return;
+    }
+  }
+
+  // Calcular rango de fechas disponible
+  const allDates = [
+    ...RAW_CI.map(r=>r.fecha),
+    ...RAW_OF.map(r=>r.fecha),
+  ].filter(Boolean).sort();
+
+  const maxDate = allDates[allDates.length - 1] || '2026-04-09';
+  // Default: mostrar los últimos 10 días disponibles
+  const from10 = allDates.findLast(d => d <= maxDate) || maxDate;
+  const fromDate = allDates.length > 0
+    ? allDates[Math.max(0, allDates.length - 200)] // ~últimos días con datos
+    : '2026-04-01';
+
+  document.getElementById('date-from').value = '2026-04-01';
+  document.getElementById('date-to').value   = maxDate;
+
+  applyFilter();
+  showLoading(false);
+}
+
+function setSourceBadge(text, color) {
+  let el = document.getElementById('source-badge');
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = color;
+  el.style.borderColor = color;
+}
+
+// ── PARSEAR CSV DE GOOGLE SHEETS ──────────────────────────────
+function parseCSV_CI(csv) {
+  const lines = parseCSVLines(csv);
+  if (lines.length < 2) return [];
+  const headers = lines[0].map(h => h.trim());
+
+  // Mapeo flexible de columnas (por si cambia el orden en Sheets)
+  const idx = (candidates) => {
+    for (const c of candidates) {
+      const i = headers.findIndex(h => h.toLowerCase().includes(c.toLowerCase()));
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
+
+  const iEmp  = idx(['Empleado','empleado','promotor']);
+  const iPDV  = idx(['Punto de venta','pdv','PDV','punto']);
+  const iCiu  = idx(['Ciudad','ciudad']);
+  const iFech = idx(['Fecha de la visita','fecha','Fecha']);
+  const iCI   = idx(['check-in manual','checkin','check in','Primer']);
+  const iCO   = idx(['check-out manual','checkout','check out','Último']);
+  const iTiem = idx(['Tiempo en PDV','tiempo','Tiempo']);
+
+  return lines.slice(1).map(cols => {
+    const fecha = parseDate(cols[iFech] || '');
+    const ciRaw = cols[iCI]  || '';
+    const coRaw = cols[iCO]  || '';
+    return {
+      empleado: cols[iEmp]  || '',
+      pdv:      cols[iPDV]  || '',
+      ciudad:   cols[iCiu]  || '',
+      fecha,
+      checkin:  extractTime(ciRaw),
+      checkout: extractTime(coRaw),
+      tiempo:   (cols[iTiem] || '').substring(0,5),
+    };
+  }).filter(r => r.fecha && r.empleado);
+}
+
+function parseCSV_OF(csv) {
+  const lines = parseCSVLines(csv);
+  if (lines.length < 2) return [];
+  const headers = lines[0].map(h => h.trim());
+
+  const idx = (candidates) => {
+    for (const c of candidates) {
+      const i = headers.findIndex(h => h.toLowerCase().includes(c.toLowerCase()));
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
+
+  const iEmp   = idx(['Empleado','empleado']);
+  const iPDV   = idx(['PDV','Punto de venta','pdv']);
+  const iCiu   = idx(['Ciudad','ciudad']);
+  const iFech  = idx(['Fecha y hora','fecha','Fecha']);
+  const iMarca = idx(['Atributo','Marca','marca','Oferta']);
+  const iValor = idx(['Valor','valor','Descuento']);
+
+  return lines.slice(1).map(cols => {
+    const fecha = parseDate(cols[iFech] || '');
+    const marca = (cols[iMarca] || '')
+      .replace(/^\d+\.\s*Oferta\s*/i, '')
+      .replace(/:$/, '')
+      .trim();
+    const valor = cols[iValor] || '';
+    const tiene = !/sin|ningun/i.test(valor) && valor.trim() !== '';
+    return {
+      empleado: cols[iEmp]  || '',
+      pdv:      cols[iPDV]  || '',
+      ciudad:   cols[iCiu]  || '',
+      fecha,
+      marca,
+      valor,
+      tiene,
+    };
+  }).filter(r => r.fecha && r.empleado);
+}
+
+// Parsea CSV respetando comillas y comas dentro de campos
+function parseCSVLines(csv) {
+  const result = [];
+  const lines  = csv.split(/\r?\n/);
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    cols.push(cur.trim());
+    result.push(cols);
+  }
+  return result;
+}
+
+function extractTime(s) {
+  // Extrae HH:MM de strings como "2026-01-02 11:28:00" o "11:28"
+  const m = String(s).match(/(\d{1,2}:\d{2})/);
+  return m ? m[1] : null;
+}
+
+function parseDate(s) {
+  if (!s) return null;
+  if (s.includes('/')) {
+    const p = s.split('/');
+    if (p.length >= 3) return `${p[2].substring(0,4)}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
+  return s.substring(0,10);
+}
+
+function showLoading(b) {
+  document.getElementById('loading-overlay').classList.toggle('show', b);
+}
+
+// ── FILTER ────────────────────────────────────────────────────
+function applyFilter() {
+  const from = document.getElementById('date-from').value;
+  const to   = document.getElementById('date-to').value;
+
+  filteredCI = RAW_CI.filter(r => r.fecha && r.fecha >= from && r.fecha <= to);
+  filteredOF = RAW_OF.filter(r => r.fecha && r.fecha >= from && r.fecha <= to);
+
+  const label = from && to ? `📅 ${fmtDate(from)} – ${fmtDate(to)}` : '📅 Todos los datos';
+  document.getElementById('period-label').textContent = label;
+  document.getElementById('filter-info').textContent =
+    `${filteredCI.length} visitas · ${new Set(filteredOF.map(r=>r.fecha)).size} días de ofertas`;
+
+  ciPage = 1; ofPage = 1;
+  renderCheckin();
+  renderOfertas();
+}
+
+function clearFilter() {
+  document.getElementById('date-from').value = '2026-01-02';
+  document.getElementById('date-to').value   = '2026-04-09';
+  applyFilter();
+}
+
+function fmtDate(s) {
+  if (!s) return '';
+  const [y,m,d] = s.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+// ── RENDER CHECK-IN ───────────────────────────────────────────
+function renderCheckin() {
+  const data = filteredCI;
+  const felix   = data.filter(r => r.empleado.toUpperCase().includes('FELIX'));
+  const marcelo  = data.filter(r => r.empleado.toUpperCase().includes('MARCELO'));
+
+  // KPIs
+  const avgTime = avg(data.map(r => parseTimeMin(r.tiempo)));
+  document.getElementById('kpi-ci').innerHTML = `
+    ${kpiCard('📍','ki-b', data.length, 'Total Visitas', 'en el período')}
+    ${kpiCard('👤','ki-t', felix.length, 'Visitas Felix', `prom ${avg(felix.map(r=>parseTimeMin(r.tiempo))).toFixed(0)} min`)}
+    ${kpiCard('👤','ki-l', marcelo.length, 'Visitas Marcelo', `prom ${avg(marcelo.map(r=>parseTimeMin(r.tiempo))).toFixed(0)} min`)}
+    ${kpiCard('⏱️','ki-o', avgTime.toFixed(0)+"'", 'Prom. Min en PDV', 'todos los promotores')}
+    ${kpiCard('🏪','ki-b', new Set(data.map(r=>r.pdv)).size, 'PDVs Visitados', 'puntos de venta únicos')}
+  `;
+
+  // Emp cards
+  const avgF = avg(felix.map(r=>parseTimeMin(r.tiempo)));
+  const avgM = avg(marcelo.map(r=>parseTimeMin(r.tiempo)));
+  document.getElementById('emp-cards').innerHTML = `
+    <div class="emp-card">
+      <div class="emp-hdr">
+        <div class="emp-av" style="background:linear-gradient(135deg,var(--blue),var(--teal))">FR</div>
+        <div><div class="emp-name">FELIX RECALDE</div><div class="emp-role">Promotor de Farmacias</div></div>
+      </div>
+      <div class="emp-stats">
+        <div><div class="esv">${felix.length}</div><div class="esl">Visitas</div></div>
+        <div><div class="esv">${avgF.toFixed(1)}'</div><div class="esl">Prom. PDV</div></div>
+        <div><div class="esv" style="color:var(--teal)">${data.length?((felix.length/data.length)*100).toFixed(0):0}%</div><div class="esl">Del total</div></div>
+      </div>
+    </div>
+    <div class="emp-card">
+      <div class="emp-hdr">
+        <div class="emp-av" style="background:linear-gradient(135deg,#005f75,var(--lime))">MM</div>
+        <div><div class="emp-name">MARCELO MEZA</div><div class="emp-role">Promotor de Farmacias</div></div>
+      </div>
+      <div class="emp-stats">
+        <div><div class="esv">${marcelo.length}</div><div class="esl">Visitas</div></div>
+        <div><div class="esv">${avgM.toFixed(1)}'</div><div class="esl">Prom. PDV</div></div>
+        <div><div class="esv" style="color:var(--teal)">${data.length?((marcelo.length/data.length)*100).toFixed(0):0}%</div><div class="esl">Del total</div></div>
+      </div>
+    </div>
+  `;
+
+  // Charts
+  const byDay = groupCount(data, 'fecha');
+  const days = Object.keys(byDay).sort();
+  renderChart('cVisitasDia', {
+    type:'bar',
+    data:{ labels: days.map(fmtDate), datasets:[{
+      label:'Visitas', data: days.map(d=>byDay[d]),
+      backgroundColor:'rgba(0,87,168,.8)', borderRadius:4
+    }]},
+    options:chartOpts(false)
+  });
+
+  renderChart('cVisitasEmp', {
+    type:'bar',
+    data:{ labels: days.map(fmtDate), datasets:[
+      { label:'Felix',   data: days.map(d=>felix.filter(r=>r.fecha===d).length),   backgroundColor:'rgba(0,56,101,.85)', borderRadius:4 },
+      { label:'Marcelo', data: days.map(d=>marcelo.filter(r=>r.fecha===d).length), backgroundColor:'rgba(0,188,221,.85)', borderRadius:4 },
+    ]},
+    options:chartOpts(true)
+  });
+
+  const ciudades = groupCount(data, 'ciudad');
+  const cSort = Object.entries(ciudades).sort((a,b)=>b[1]-a[1]).slice(0,9);
+  renderChart('cCiudad', {
+    type:'bar',
+    data:{ labels: cSort.map(c=>c[0]), datasets:[{ label:'Visitas', data: cSort.map(c=>c[1]), backgroundColor:'rgba(0,87,168,.8)', borderRadius:4 }]},
+    options:{...chartOpts(false), indexAxis:'y'}
+  });
+
+  renderChart('cTiempo', {
+    type:'doughnut',
+    data:{ labels:['Felix','Marcelo'], datasets:[{
+      data:[felix.reduce((s,r)=>s+parseTimeMin(r.tiempo),0), marcelo.reduce((s,r)=>s+parseTimeMin(r.tiempo),0)],
+      backgroundColor:['rgba(0,56,101,.85)','rgba(0,188,221,.85)'], borderWidth:0
+    }]},
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{ legend:{ position:'bottom', labels:{ font:{size:10}, padding:8 } } } }
+  });
+
+  const maxT = Math.max(avgF, avgM) || 1;
+  document.getElementById('prog-tiempos').innerHTML = `
+    <div class="prog-row"><span class="prog-lbl">Felix Recalde</span><div class="prog-bar"><div class="prog-fill" style="width:${(avgF/maxT*100).toFixed(0)}%;background:linear-gradient(90deg,var(--blue),var(--teal))"></div></div><span class="prog-pct">${avgF.toFixed(1)}'</span></div>
+    <div class="prog-row"><span class="prog-lbl">Marcelo Meza</span><div class="prog-bar"><div class="prog-fill" style="width:${(avgM/maxT*100).toFixed(0)}%"></div></div><span class="prog-pct">${avgM.toFixed(1)}'</span></div>
+  `;
+
+  renderCiTable();
+}
+
+// ── CI TABLE ─────────────────────────────────────────────────
+function getCiRows() {
+  const search = document.getElementById('ci-search').value.toLowerCase();
+  const emp = document.getElementById('ci-emp-filter').value;
+  return filteredCI.filter(r => {
+    const matchEmp = !emp || r.empleado.toUpperCase().includes(emp);
+    const matchS = !search || r.pdv.toLowerCase().includes(search) || r.ciudad.toLowerCase().includes(search);
+    return matchEmp && matchS;
+  });
+}
+
+function renderCiTable() {
+  const rows = getCiRows();
+  const total = rows.length;
+  const start = (ciPage-1)*PAGE_SIZE;
+  const page  = rows.slice(start, start+PAGE_SIZE);
+
+  document.getElementById('ci-table-sub').textContent = `${total} registros en el período seleccionado`;
+  document.getElementById('ci-table-body').innerHTML = page.map(r => {
+    const emp = r.empleado.includes('FELIX') ? 'Felix Recalde' : 'Marcelo Meza';
+    return `<tr>
+      <td>${fmtDate(r.fecha)}</td>
+      <td>${emp}</td>
+      <td style="max-width:250px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.pdv}">${r.pdv}</td>
+      <td>${r.ciudad}</td>
+      <td><strong style="color:var(--blue)">${r.checkin||'–'}</strong></td>
+      <td><strong style="color:var(--teal)">${r.checkout||'–'}</strong></td>
+      <td>${r.tiempo||'–'}</td>
+    </tr>`;
+  }).join('');
+
+  renderPagination('ci-pagination', ciPage, Math.ceil(total/PAGE_SIZE), (p)=>{ ciPage=p; renderCiTable(); });
+}
+
+document.getElementById('ci-search').addEventListener('input', ()=>{ ciPage=1; renderCiTable(); });
+document.getElementById('ci-emp-filter').addEventListener('change', ()=>{ ciPage=1; renderCiTable(); });
+
+// ── RENDER OFERTAS ────────────────────────────────────────────
+function renderOfertas() {
+  const data = filteredOF;
+  const conOf = data.filter(r=>r.tiene);
+  const encuestas = new Set(data.map(r=>r.fecha+'|'+r.pdv+'|'+r.empleado)).size;
+
+  document.getElementById('kpi-of').innerHTML = `
+    ${kpiCard('📋','ki-b', encuestas, 'Encuestas', 'farmacias relevadas')}
+    ${kpiCard('💊','ki-t', new Set(data.map(r=>r.marca)).size, 'Marcas', 'productos relevados')}
+    ${kpiCard('🏷️','ki-l', conOf.length, 'Registros con Oferta', 'sobre el total')}
+    ${kpiCard('📊','ki-o', data.length?(conOf.length/data.length*100).toFixed(1)+'%':'0%', 'Cobertura Oferta', 'del total de registros')}
+  `;
+
+  // % por marca
+  const marcas = {};
+  data.forEach(r => {
+    if (!marcas[r.marca]) marcas[r.marca] = { tot:0, of:0 };
+    marcas[r.marca].tot++;
+    if (r.tiene) marcas[r.marca].of++;
+  });
+  const marcaList = Object.entries(marcas)
+    .map(([m,v]) => ({ marca:m, pct: v.tot ? (v.of/v.tot*100) : 0 }))
+    .sort((a,b)=>b.pct-a.pct).slice(0,12);
+
+  renderChart('cOfertasMarca', {
+    type:'bar',
+    data:{ labels: marcaList.map(m=>m.marca), datasets:[{
+      label:'% con Oferta',
+      data: marcaList.map(m=>+m.pct.toFixed(1)),
+      backgroundColor: marcaList.map(m => m.pct>=50?'rgba(165,205,57,.85)':m.pct>=25?'rgba(0,188,221,.85)':'rgba(0,56,101,.7)'),
+      borderRadius:4,
+    }]},
+    options:{ ...chartOpts(false), indexAxis:'y', scales:{ x:{ max:100, ticks:{ callback:v=>v+'%' }, grid:{color:'rgba(0,0,0,.06)'}}, y:{grid:{display:false},ticks:{font:{size:10}}} } }
+  });
+
+  const byDay = groupCount(data.filter(r=>r.tiene), 'fecha');
+  const days = Object.keys(byDay).sort();
+  renderChart('cEncDia', {
+    type:'line',
+    data:{ labels: days.map(fmtDate), datasets:[{
+      label:'Con Oferta', data: days.map(d=>byDay[d]),
+      borderColor:'var(--teal)', backgroundColor:'rgba(0,188,221,.1)',
+      borderWidth:2.5, fill:true, tension:.35, pointRadius:4, pointBackgroundColor:'var(--teal)'
+    }]},
+    options:chartOpts(false)
+  });
+
+  // Descuentos
+  const descMap = {};
+  conOf.forEach(r=>{ descMap[r.valor]=(descMap[r.valor]||0)+1; });
+  const descList = Object.entries(descMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxD = descList[0]?.[1]||1;
+  document.getElementById('prog-descuentos').innerHTML = descList.map(([v,c])=>`
+    <div class="prog-row">
+      <span class="prog-lbl">${v}</span>
+      <div class="prog-bar"><div class="prog-fill" style="width:${(c/maxD*100).toFixed(0)}%"></div></div>
+      <span class="prog-pct">${c}</span>
+    </div>`).join('');
+
+  renderOfTable();
+}
+
+// ── OFERTAS TABLE ─────────────────────────────────────────────
+function getOfRows() {
+  const search  = document.getElementById('of-search').value.toLowerCase();
+  const emp     = document.getElementById('of-emp-filter').value;
+  const ofFilt  = document.getElementById('of-oferta-filter').value;
+  return filteredOF.filter(r => {
+    const matchEmp = !emp || r.empleado.toUpperCase().includes(emp);
+    const matchS = !search || r.marca.toLowerCase().includes(search) || r.pdv.toLowerCase().includes(search);
+    const matchOf = ofFilt==='' || (ofFilt==='1' && r.tiene) || (ofFilt==='0' && !r.tiene);
+    return matchEmp && matchS && matchOf;
+  });
+}
+
+function renderOfTable() {
+  const rows = getOfRows();
+  const total = rows.length;
+  const start = (ofPage-1)*PAGE_SIZE;
+  const page  = rows.slice(start, start+PAGE_SIZE);
+
+  document.getElementById('of-table-sub').textContent = `${total} registros en el período seleccionado`;
+  document.getElementById('of-table-body').innerHTML = page.map(r=>{
+    const emp = r.empleado.includes('FELIX') ? 'Felix Recalde' : 'Marcelo Meza';
+    const badge = r.tiene ? '<span class="badge bh">Con Oferta</span>' : '<span class="badge bl">Sin Oferta</span>';
+    return `<tr>
+      <td>${fmtDate(r.fecha)}</td>
+      <td>${emp}</td>
+      <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.pdv}">${r.pdv}</td>
+      <td>${r.ciudad}</td>
+      <td><strong>${r.marca}</strong></td>
+      <td>${r.tiene?`<strong style="color:var(--lime)">${r.valor}</strong>`:`<span style="color:var(--t2)">${r.valor}</span>`}</td>
+      <td>${badge}</td>
+    </tr>`;
+  }).join('');
+
+  renderPagination('of-pagination', ofPage, Math.ceil(total/PAGE_SIZE), (p)=>{ ofPage=p; renderOfTable(); });
+}
+
+document.getElementById('of-search').addEventListener('input', ()=>{ ofPage=1; renderOfTable(); });
+document.getElementById('of-emp-filter').addEventListener('change', ()=>{ ofPage=1; renderOfTable(); });
+document.getElementById('of-oferta-filter').addEventListener('change', ()=>{ ofPage=1; renderOfTable(); });
+
+// ── UTILS ─────────────────────────────────────────────────────
+function kpiCard(icon, cls, val, lbl, sub) {
+  return `<div class="kpi-card"><div class="kpi-icon ${cls}">${icon}</div><div class="kpi-val">${val}</div><div class="kpi-lbl">${lbl}</div><div class="kpi-sub">${sub}</div></div>`;
+}
+
+function groupCount(arr, key) {
+  const m = {};
+  arr.forEach(r=>{ m[r[key]]=(m[r[key]]||0)+1; });
+  return m;
+}
+
+function avg(arr) {
+  const v = arr.filter(x=>x>0);
+  return v.length ? v.reduce((a,b)=>a+b,0)/v.length : 0;
+}
+
+function parseTimeMin(t) {
+  if (!t) return 0;
+  const p = String(t).split(':');
+  if (p.length >= 2) return parseInt(p[0])*60+parseInt(p[1]);
+  return 0;
+}
+
+function chartOpts(legend) {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ display:legend, position:'bottom', labels:{ font:{size:10}, padding:10 }} },
+    scales:{
+      y:{ grid:{ color:'rgba(0,0,0,.06)' }, ticks:{font:{size:10}} },
+      x:{ grid:{ display:false }, ticks:{ font:{size:10}, maxRotation:45 } }
+    }
+  };
+}
+
+function renderChart(id, config) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  Chart.defaults.font.family = "'Barlow', sans-serif";
+  Chart.defaults.color = '#4A6070';
+  charts[id] = new Chart(ctx.getContext('2d'), config);
+}
+
+function renderPagination(containerId, current, total, onClick) {
+  const el = document.getElementById(containerId);
+  if (total <= 1) { el.innerHTML=''; return; }
+  let html = `<span class="pg-info">Pág ${current} de ${total}</span>`;
+  if (current > 1) html += `<button class="pg-btn" onclick="(${onClick.toString()})(${current-1})">‹ Ant</button>`;
+  // Show nearby pages
+  const pages = [];
+  for (let p=Math.max(1,current-2); p<=Math.min(total,current+2); p++) pages.push(p);
+  pages.forEach(p => html += `<button class="pg-btn ${p===current?'active':''}" onclick="(${onClick.toString()})(${p})">${p}</button>`);
+  if (current < total) html += `<button class="pg-btn" onclick="(${onClick.toString()})(${current+1})">Sig ›</button>`;
+  el.innerHTML = html;
+}
+
+// ── TABS ──────────────────────────────────────────────────────
+function switchTab(id, el) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  el.classList.add('active');
+  currentTab = id;
+}
+
+// ── DOWNLOAD PPT ──────────────────────────────────────────────
+async function downloadPPT() {
+  showLoading(true);
+  const from  = document.getElementById('date-from').value;
+  const to    = document.getElementById('date-to').value;
+  const label = `${fmtDate(from)} – ${fmtDate(to)}`;
+
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE';
+  pptx.title  = `Bayer Dashboard ${label}`;
+
+  const BLU = '003865', TEA = '00BCDD', LIM = 'A5CD39', RED = 'CC0000', WHT = 'FFFFFF';
+
+  function bg(slide) {
+    slide.addShape(pptx.ShapeType.rect, { x:0,y:0,w:'100%',h:'100%', fill:{color:'001E3C'} });
+    slide.addShape(pptx.ShapeType.rect, { x:0,y:0,w:0.08,h:'100%', fill:{color:TEA} });
+  }
+  function ttl(slide, t, s) {
+    slide.addText(t, { x:0.3,y:0.15,w:12.5,h:0.5, fontSize:26,bold:true,color:WHT,fontFace:'Calibri' });
+    if(s) slide.addText(s, { x:0.3,y:0.6,w:12.5,h:0.28, fontSize:12,color:TEA,fontFace:'Calibri' });
+  }
+
+  // ── SLIDE 1: Portada
+  const s1 = pptx.addSlide();
+  bg(s1);
+  s1.addShape(pptx.ShapeType.rect, { x:0,y:2.6,w:'100%',h:0.07, fill:{color:LIM} });
+  s1.addText('BAYER', { x:1.5,y:1.0,w:10,h:1, fontSize:72,bold:true,color:RED,fontFace:'Calibri' });
+  s1.addText('Dashboard Farmacias', { x:1.5,y:2.0,w:10,h:0.6, fontSize:30,color:WHT,fontFace:'Calibri' });
+  s1.addText(`Check-in / Check-out  ·  Ofertas en Farmacias`, { x:1.5,y:2.7,w:10,h:0.4, fontSize:16,color:TEA,fontFace:'Calibri' });
+  s1.addText(`Período: ${label}`, { x:1.5,y:3.2,w:10,h:0.35, fontSize:14,color:'A0B8C8',fontFace:'Calibri' });
+
+  // ── SLIDE 2: KPIs Check-in
+  const felix   = filteredCI.filter(r=>r.empleado.toUpperCase().includes('FELIX'));
+  const marcelo = filteredCI.filter(r=>r.empleado.toUpperCase().includes('MARCELO'));
+  const avgTF = avg(felix.map(r=>parseTimeMin(r.tiempo)));
+  const avgTM = avg(marcelo.map(r=>parseTimeMin(r.tiempo)));
+  const avgTot = avg(filteredCI.map(r=>parseTimeMin(r.tiempo)));
+
+  const s2 = pptx.addSlide();
+  bg(s2);
+  ttl(s2,'CHECK-IN / CHECK-OUT · RESUMEN',`Período: ${label}`);
+  const k2 = [
+    { l:'Total Visitas', v:String(filteredCI.length) },
+    { l:'Felix Recalde', v:String(felix.length) },
+    { l:'Marcelo Meza',  v:String(marcelo.length) },
+    { l:'Prom. Min PDV', v:avgTot.toFixed(0)+"'" },
+    { l:'PDVs Únicos',   v:String(new Set(filteredCI.map(r=>r.pdv)).size) },
+  ];
+  k2.forEach((k,i)=>{
+    const x = 0.25 + i*2.55;
+    s2.addShape(pptx.ShapeType.rect, { x,y:1.05,w:2.4,h:1.45, fill:{color:'0D2B45'}, line:{color:TEA,pt:1} });
+    s2.addText(k.v, { x,y:1.1,w:2.4,h:0.65, fontSize:38,bold:true,color:TEA,align:'center',fontFace:'Calibri' });
+    s2.addText(k.l, { x,y:1.75,w:2.4,h:0.3, fontSize:11,color:'A0B8C8',align:'center',fontFace:'Calibri' });
+  });
+
+  // Tabla detalle empleados
+  s2.addTable([
+    [{text:'Promotor',options:{bold:true,color:WHT,fill:BLU}},{text:'Visitas',options:{bold:true,color:WHT,fill:BLU}},{text:'Prom. min PDV',options:{bold:true,color:WHT,fill:BLU}}],
+    ['Felix Recalde Maldonado', String(felix.length), avgTF.toFixed(1)+' min'],
+    ['Marcelo Adrián Meza',     String(marcelo.length), avgTM.toFixed(1)+' min'],
+  ],{x:0.3,y:2.65,w:12.5,colW:[6,3,3.5],fontSize:13,color:'D0E8F0',border:{type:'solid',color:'1A3A55',pt:1}});
+
+  // ── SLIDE 3: Visitas por día
+  const byDay = groupCount(filteredCI, 'fecha');
+  const days  = Object.keys(byDay).sort();
+  if (days.length > 0) {
+    const s3 = pptx.addSlide();
+    bg(s3);
+    ttl(s3,'VISITAS POR DÍA',`Check-in registrados · ${label}`);
+    s3.addChart(pptx.ChartType.bar, [{
+      name:'Visitas',
+      labels: days.map(fmtDate),
+      values: days.map(d=>byDay[d]),
+    }],{ x:0.5,y:1.0,w:12,h:4.1, barDir:'col', chartColors:[BLU], showValue:true });
+  }
+
+  // ── SLIDE 4: Visitas por ciudad
+  const ciudades = groupCount(filteredCI, 'ciudad');
+  const cSort = Object.entries(ciudades).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if (cSort.length > 0) {
+    const s4 = pptx.addSlide();
+    bg(s4);
+    ttl(s4,'VISITAS POR CIUDAD',`Cobertura geográfica · ${label}`);
+    s4.addChart(pptx.ChartType.bar, [{
+      name:'Visitas', labels:cSort.map(c=>c[0]), values:cSort.map(c=>c[1])
+    }],{ x:0.5,y:1.0,w:12,h:4.1, barDir:'bar', chartColors:[TEA], showValue:true });
+  }
+
+  // ── SLIDE 5: Tabla detalle Check-in / Check-out
+  const ciRows = filteredCI.slice(0,25);
+  if (ciRows.length > 0) {
+    const s5 = pptx.addSlide();
+    bg(s5);
+    ttl(s5,'DETALLE CHECK-IN / CHECK-OUT',`Registro de visitas · ${label} (primeros ${Math.min(25,filteredCI.length)} de ${filteredCI.length})`);
+    const tableData = [
+      [
+        {text:'Fecha',     options:{bold:true,color:WHT,fill:BLU}},
+        {text:'Promotor',  options:{bold:true,color:WHT,fill:BLU}},
+        {text:'PDV',       options:{bold:true,color:WHT,fill:BLU}},
+        {text:'Ciudad',    options:{bold:true,color:WHT,fill:BLU}},
+        {text:'Check-in',  options:{bold:true,color:WHT,fill:BLU}},
+        {text:'Check-out', options:{bold:true,color:WHT,fill:BLU}},
+        {text:'Tiempo',    options:{bold:true,color:WHT,fill:BLU}},
+      ],
+      ...ciRows.map(r=>[
+        fmtDate(r.fecha),
+        r.empleado.includes('FELIX') ? 'Felix R.' : 'Marcelo M.',
+        r.pdv.length>35 ? r.pdv.substring(0,35)+'…' : r.pdv,
+        r.ciudad,
+        r.checkin||'–',
+        r.checkout||'–',
+        r.tiempo||'–',
+      ])
+    ];
+    s5.addTable(tableData,{ x:0.2,y:0.95,w:13,colW:[1.4,1.7,4,1.6,1.1,1.1,1.1],fontSize:9,color:'D0E8F0',border:{type:'solid',color:'1A3A55',pt:0.5} });
+  }
+
+  // ── SLIDE 6: KPIs Ofertas
+  const conOf = filteredOF.filter(r=>r.tiene);
+  const s6 = pptx.addSlide();
+  bg(s6);
+  ttl(s6,'OFERTAS EN FARMACIAS · RESUMEN',`Período: ${label}`);
+  const k6 = [
+    { l:'Encuestas',    v:String(new Set(filteredOF.map(r=>r.fecha+'|'+r.pdv)).size) },
+    { l:'Con Oferta',   v:String(conOf.length) },
+    { l:'Sin Oferta',   v:String(filteredOF.length-conOf.length) },
+    { l:'Cobertura',    v:filteredOF.length?(conOf.length/filteredOF.length*100).toFixed(0)+'%':'0%' },
+  ];
+  k6.forEach((k,i)=>{
+    const x = 0.5 + i*3.15;
+    s6.addShape(pptx.ShapeType.rect,{ x,y:1.05,w:2.9,h:1.45, fill:{color:'0D2B45'}, line:{color:TEA,pt:1} });
+    s6.addText(k.v, { x,y:1.1,w:2.9,h:0.65, fontSize:38,bold:true,color:TEA,align:'center',fontFace:'Calibri' });
+    s6.addText(k.l, { x,y:1.75,w:2.9,h:0.3, fontSize:11,color:'A0B8C8',align:'center',fontFace:'Calibri' });
+  });
+
+  // ── SLIDE 7: % por marca
+  const marcas = {};
+  filteredOF.forEach(r=>{ if(!marcas[r.marca])marcas[r.marca]={tot:0,of:0}; marcas[r.marca].tot++; if(r.tiene)marcas[r.marca].of++; });
+  const marcaList = Object.entries(marcas).map(([m,v])=>({marca:m,pct:v.tot?(v.of/v.tot*100):0})).sort((a,b)=>b.pct-a.pct).slice(0,12);
+
+  if (marcaList.length > 0) {
+    const s7 = pptx.addSlide();
+    bg(s7);
+    ttl(s7,'% FARMACIAS CON OFERTA POR MARCA',`Período: ${label}`);
+    s7.addChart(pptx.ChartType.bar, [{
+      name:'% con Oferta',
+      labels: marcaList.map(m=>m.marca),
+      values: marcaList.map(m=>+m.pct.toFixed(1)),
+    }],{ x:0.5,y:1.0,w:12,h:4.1, barDir:'bar',
+      chartColors:[LIM,LIM,TEA,TEA,TEA,TEA,BLU,BLU,BLU,BLU,BLU,BLU],
+      showValue:true, valAxisMaxVal:100 });
+  }
+
+  // ── SLIDE 8: Tabla detalle Ofertas
+  const ofRows = filteredOF.filter(r=>r.tiene).slice(0,22);
+  if (ofRows.length > 0) {
+    const s8 = pptx.addSlide();
+    bg(s8);
+    ttl(s8,'DETALLE DE OFERTAS ACTIVAS',`${label} · (primeros ${Math.min(22,ofRows.length)} de ${filteredOF.filter(r=>r.tiene).length} registros con oferta)`);
+    const ofTable = [
+      [
+        {text:'Fecha',     options:{bold:true,color:WHT,fill:BLU}},
+        {text:'Promotor',  options:{bold:true,color:WHT,fill:BLU}},
+        {text:'PDV',       options:{bold:true,color:WHT,fill:BLU}},
+        {text:'Ciudad',    options:{bold:true,color:WHT,fill:BLU}},
+        {text:'Marca',     options:{bold:true,color:WHT,fill:BLU}},
+        {text:'Descuento', options:{bold:true,color:WHT,fill:BLU}},
+      ],
+      ...ofRows.map(r=>[
+        fmtDate(r.fecha),
+        r.empleado.includes('FELIX') ? 'Felix R.' : 'Marcelo M.',
+        r.pdv.length>35 ? r.pdv.substring(0,35)+'…' : r.pdv,
+        r.ciudad,
+        r.marca,
+        r.valor,
+      ])
+    ];
+    s8.addTable(ofTable,{ x:0.2,y:0.95,w:13,colW:[1.3,1.7,4.2,1.6,2.4,1.8],fontSize:9,color:'D0E8F0',border:{type:'solid',color:'1A3A55',pt:0.5} });
+  }
+
+  showLoading(false);
+  await pptx.writeFile({ fileName:`Bayer_Dashboard_${from}_al_${to}.pptx` });
+}
+
+// ── RELOAD FROM SHEETS ────────────────────────────────────────
+async function reloadSheets() {
+  showLoading(true);
+  setSourceBadge('⏳ Actualizando Sheets...', '#A0B8C8');
+  try {
+    const [csvCI, csvOF] = await Promise.all([
+      fetchWithTimeout(SHEETS_URL_CI, 10000),
+      fetchWithTimeout(SHEETS_URL_OF, 10000),
+    ]);
+    const parsedCI = parseCSV_CI(csvCI);
+    const parsedOF = parseCSV_OF(csvOF);
+    if (parsedCI.length > 0) {
+      RAW_CI = parsedCI;
+      RAW_OF = parsedOF;
+      dataSource = 'sheets';
+      setSourceBadge('🟢 Google Sheets (tiempo real)', 'var(--lime)');
+      applyFilter();
+    } else {
+      setSourceBadge('⚠️ Sheets vacío – verifique gid', '#FFC107');
+    }
+  } catch(e) {
+    setSourceBadge('🔴 Sheets no disponible', '#FF6B35');
+    alert('No se pudo conectar a Google Sheets.\n\nVerificá que:\n1. El Sheets esté publicado como CSV\n2. Los GID de cada pestaña sean correctos (ver comentarios en el código)\n\nError: ' + e.message);
+  }
+  showLoading(false);
+}
+
+// ── START ─────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
