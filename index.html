@@ -269,7 +269,7 @@ tr:hover td{background:var(--light)}
   <span class="filter-info" id="filter-info"></span>
   <button class="btn-download" onclick="downloadPPT()">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    Descargar Informe
+    Descargar PPT
   </button>
 </div>
 
@@ -340,6 +340,7 @@ tr:hover td{background:var(--light)}
           <th>Check-in</th>
           <th>Check-out</th>
           <th>Tiempo</th>
+          <th>Motivo No Realización</th>
         </tr>
       </thead>
       <tbody id="ci-table-body"></tbody>
@@ -498,7 +499,8 @@ async function init() {
         fetch('checkin_data.json'),
         fetch('ofertas_data.json'),
       ]);
-      RAW_CI = await rCI.json();
+      const rawCIjson = await rCI.json();
+      RAW_CI = rawCIjson.map(r => ({ ...r, motivo: r.motivo || '' }));
       RAW_OF = await rOF.json();
       dataSource = 'local';
       setSourceBadge('🟡 Datos locales (Excel)', '#FFC107', true);
@@ -567,14 +569,16 @@ function parseCSV_CI(csv) {
   const iPDV  = idx(['Punto de venta','pdv','PDV','punto']);
   const iCiu  = idx(['Ciudad','ciudad']);
   const iFech = idx(['Fecha de la visita','fecha','Fecha']);
-  const iCI   = idx(['check-in manual','checkin','check in','Primer']);
-  const iCO   = idx(['check-out manual','checkout','check out','Último']);
-  const iTiem = idx(['Tiempo en PDV','tiempo','Tiempo']);
+  const iCI     = idx(['check-in manual','checkin','check in','Primer']);
+  const iCO     = idx(['check-out manual','checkout','check out','Último']);
+  const iTiem   = idx(['Tiempo en PDV','tiempo','Tiempo']);
+  const iMotivo = idx(['Motivo de No realizacion','Motivo','motivo','No realizacion']);
 
   return lines.slice(1).map(cols => {
     const fecha = parseDate(cols[iFech] || '');
     const ciRaw = cols[iCI]  || '';
     const coRaw = cols[iCO]  || '';
+    const motivo = iMotivo >= 0 ? (cols[iMotivo] || '').trim() : '';
     return {
       empleado: cols[iEmp]  || '',
       pdv:      cols[iPDV]  || '',
@@ -583,6 +587,7 @@ function parseCSV_CI(csv) {
       checkin:  extractTime(ciRaw),
       checkout: extractTime(coRaw),
       tiempo:   fmtTiempo(cols[iTiem] || ''),
+      motivo:   motivo,
     };
   }).filter(r => r.fecha && r.empleado);
 }
@@ -835,6 +840,7 @@ function renderCiTable() {
       <td><strong style="color:var(--blue)">${r.checkin||'–'}</strong></td>
       <td><strong style="color:var(--teal)">${r.checkout||'–'}</strong></td>
       <td style="font-family:monospace;font-size:.82rem">${fmtTiempo(r.tiempo)||'–'}</td>
+      <td style="max-width:200px;font-size:.78rem;color:${r.motivo?'var(--accent)':'var(--t2)'}">${r.motivo||'<span style="opacity:.4">–</span>'}</td>
     </tr>`;
   }).join('');
 
@@ -1014,10 +1020,12 @@ function switchTab(id, el) {
 
 // ── DOWNLOAD PPT ──────────────────────────────────────────────
 async function downloadPPT() {
-  showLoading(true);
+  const btnDL = document.querySelector('.btn-download');
+  if (btnDL) { btnDL.style.opacity='.6'; btnDL.style.pointerEvents='none'; btnDL.textContent='⏳ Generando...'; }
   const from  = document.getElementById('date-from').value;
   const to    = document.getElementById('date-to').value;
   const label = `${fmtDate(from)} – ${fmtDate(to)}`;
+  try {
 
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE';
@@ -1115,18 +1123,20 @@ async function downloadPPT() {
         {text:'Check-in',  options:{bold:true,color:WHT,fill:BLU}},
         {text:'Check-out', options:{bold:true,color:WHT,fill:BLU}},
         {text:'Tiempo',    options:{bold:true,color:WHT,fill:BLU}},
+        {text:'Motivo',    options:{bold:true,color:WHT,fill:BLU}},
       ],
       ...ciRows.map(r=>[
         fmtDate(r.fecha),
         r.empleado.includes('FELIX') ? 'Felix R.' : 'Marcelo M.',
-        r.pdv.length>35 ? r.pdv.substring(0,35)+'…' : r.pdv,
+        r.pdv.length>30 ? r.pdv.substring(0,30)+'…' : r.pdv,
         r.ciudad,
         r.checkin||'–',
         r.checkout||'–',
         r.tiempo||'–',
+        r.motivo||'–',
       ])
     ];
-    s5.addTable(tableData,{ x:0.2,y:0.95,w:13,colW:[1.4,1.7,4,1.6,1.1,1.1,1.1],fontSize:9,color:'D0E8F0',border:{type:'solid',color:'1A3A55',pt:0.5} });
+    s5.addTable(tableData,{ x:0.2,y:0.95,w:13,colW:[1.2,1.5,3,1.4,0.9,0.9,0.9,3.2],fontSize:8,color:'D0E8F0',border:{type:'solid',color:'1A3A55',pt:0.5} });
   }
 
   // ── SLIDE 6: KPIs Ofertas
@@ -1192,8 +1202,13 @@ async function downloadPPT() {
     s8.addTable(ofTable,{ x:0.2,y:0.95,w:13,colW:[1.3,1.7,4.2,1.6,2.4,1.8],fontSize:9,color:'D0E8F0',border:{type:'solid',color:'1A3A55',pt:0.5} });
   }
 
-  showLoading(false);
-  await pptx.writeFile({ fileName:`Bayer_Dashboard_${from}_al_${to}.pptx` });
+    await pptx.writeFile({ fileName:`Bayer_Dashboard_${from}_al_${to}.pptx` });
+  } catch(e) {
+    console.error('Error al generar PPT:', e);
+    alert('Hubo un error al generar el PPT: ' + e.message);
+  } finally {
+    if (btnDL) { btnDL.style.opacity='1'; btnDL.style.pointerEvents='auto'; btnDL.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar PPT'; }
+  }
 }
 
 // ── RELOAD FROM SHEETS ────────────────────────────────────────
