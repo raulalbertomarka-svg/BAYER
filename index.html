@@ -5,7 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bayer – Dashboard Farmacias</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundled.js"></script>
+<script>
+// Carga PptxGenJS desde múltiples fuentes para garantizar disponibilidad
+(function() {
+  function loadScript(url, cb) {
+    var s = document.createElement('script');
+    s.src = url;
+    s.onload = cb;
+    s.onerror = function() {
+      console.warn('Falló CDN:', url);
+      if (url.includes('unpkg')) {
+        loadScript('https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundled.js', cb);
+      } else {
+        console.error('No se pudo cargar PptxGenJS');
+      }
+    };
+    document.head.appendChild(s);
+  }
+  loadScript('https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.bundled.js', function() {
+    console.log('PptxGenJS cargado OK');
+    window._pptxReady = true;
+  });
+})();
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap');
  
@@ -1052,6 +1074,31 @@ function switchTab(id, el) {
 // ── DOWNLOAD PPT ──────────────────────────────────────────────
 async function downloadPPT() {
   const btnDL = document.querySelector('.btn-download');
+ 
+  // Verificar que PptxGenJS esté disponible
+  if (typeof PptxGenJS === 'undefined') {
+    if (btnDL) { btnDL.style.opacity='.6'; btnDL.style.pointerEvents='none'; btnDL.textContent='⏳ Cargando librería...'; }
+    await new Promise((resolve, reject) => {
+      const src = 'https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.bundled.js';
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = () => {
+        // 2do fallback
+        const s2 = document.createElement('script');
+        s2.src = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundled.js';
+        s2.onload = resolve;
+        s2.onerror = reject;
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s);
+    }).catch(() => {
+      alert('No se pudo cargar la librería para generar el informe.\nVerificá tu conexión a internet e intentá de nuevo.');
+      if (btnDL) { btnDL.style.opacity='1'; btnDL.style.pointerEvents='auto'; btnDL.innerHTML=btnOrigHTML; }
+      return;
+    });
+  }
+ 
   if (btnDL) { btnDL.style.opacity='.6'; btnDL.style.pointerEvents='none'; btnDL.textContent='⏳ Generando...'; }
   const from  = document.getElementById('date-from').value;
   const to    = document.getElementById('date-to').value;
@@ -1246,7 +1293,7 @@ async function downloadPPT() {
     console.error('Error al generar PPT:', e);
     alert('Hubo un error al generar el PPT: ' + e.message);
   } finally {
-    if (btnDL) { btnDL.style.opacity='1'; btnDL.style.pointerEvents='auto'; btnDL.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> DESCARGAR INFORME'; }
+    if (btnDL) { btnDL.style.opacity='1'; btnDL.style.pointerEvents='auto'; btnDL.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> DESCARGAR INFORME'; btnDL.style.opacity='1'; btnDL.style.pointerEvents='auto'; }
   }
 }
  
