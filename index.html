@@ -1056,227 +1056,225 @@ function switchTab(id, el) {
 function downloadPPT() {
   const btnDL = document.querySelector('.btn-download');
   const btnOrig = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> DESCARGAR INFORME';
-  if (btnDL) { btnDL.style.opacity='.6'; btnDL.style.pointerEvents='none'; btnDL.textContent='⏳ Generando...'; }
+  if (btnDL) { btnDL.style.opacity = '.6'; btnDL.style.pointerEvents = 'none'; btnDL.textContent = '⏳ Generando...'; }
 
   try {
     const from  = document.getElementById('date-from').value;
     const to    = document.getElementById('date-to').value;
-    const label = `${fmtDate(from)} – ${fmtDate(to)}`;
+    const label = fmtDate(from) + ' – ' + fmtDate(to);
 
-    const felix   = filteredCI.filter(r=>r.empleado.toUpperCase().includes('FELIX'));
-    const marcelo = filteredCI.filter(r=>r.empleado.toUpperCase().includes('MARCELO'));
-    const avgTF   = avg(felix.map(r=>parseTimeMin(r.tiempo)));
-    const avgTM   = avg(marcelo.map(r=>parseTimeMin(r.tiempo)));
-    const avgTot  = avg(filteredCI.map(r=>parseTimeMin(r.tiempo)));
-    const conOf   = filteredOF.filter(r=>r.tiene);
+    const felix   = filteredCI.filter(function(r){ return r.empleado.toUpperCase().includes('FELIX'); });
+    const marcelo = filteredCI.filter(function(r){ return r.empleado.toUpperCase().includes('MARCELO'); });
+    const avgTF   = avg(felix.map(function(r){ return parseTimeMin(r.tiempo); }));
+    const avgTM   = avg(marcelo.map(function(r){ return parseTimeMin(r.tiempo); }));
+    const avgTot  = avg(filteredCI.map(function(r){ return parseTimeMin(r.tiempo); }));
+    const conOf   = filteredOF.filter(function(r){ return r.tiene; });
 
     // Marcas con % oferta
     const marcaMap = {};
-    filteredOF.forEach(r=>{ if(!marcaMap[r.marca])marcaMap[r.marca]={tot:0,of:0}; marcaMap[r.marca].tot++; if(r.tiene)marcaMap[r.marca].of++; });
-    const marcaList = Object.entries(marcaMap).map(([m,v])=>({marca:m,pct:v.tot?(v.of/v.tot*100):0,con:v.of,tot:v.tot})).sort((a,b)=>b.pct-a.pct);
+    filteredOF.forEach(function(r){
+      if (!marcaMap[r.marca]) marcaMap[r.marca] = {tot:0, of:0};
+      marcaMap[r.marca].tot++;
+      if (r.tiene) marcaMap[r.marca].of++;
+    });
+    const marcaList = Object.entries(marcaMap)
+      .map(function(e){ return {marca:e[0], pct:e[1].tot?(e[1].of/e[1].tot*100):0, con:e[1].of, tot:e[1].tot}; })
+      .sort(function(a,b){ return b.pct - a.pct; });
 
-    // Visitas por día
-    const byDay = groupCount(filteredCI,'fecha');
+    const byDay = groupCount(filteredCI, 'fecha');
     const daysSorted = Object.keys(byDay).sort();
-
-    // Ciudades top
-    const ciudades = groupCount(filteredCI,'ciudad');
-    const ciudadesList = Object.entries(ciudades).sort((a,b)=>b[1]-a[1]).slice(0,10);
-
-    // Descuentos
+    const ciudades = groupCount(filteredCI, 'ciudad');
+    const ciudadesList = Object.entries(ciudades).sort(function(a,b){ return b[1]-a[1]; }).slice(0,10);
     const descMap = {};
-    conOf.forEach(r=>{ descMap[r.valor]=(descMap[r.valor]||0)+1; });
-    const descList = Object.entries(descMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    conOf.forEach(function(r){ descMap[r.valor] = (descMap[r.valor]||0)+1; });
+    const descList = Object.entries(descMap).sort(function(a,b){ return b[1]-a[1]; }).slice(0,8);
 
-    const barStyle = (pct,color) => `display:inline-block;width:${Math.min(pct,100).toFixed(0)}%;height:14px;background:${color};border-radius:3px;vertical-align:middle`;
+    const maxDay   = Math.max.apply(null, Object.values(byDay)) || 1;
+    const maxCiu   = ciudadesList.length ? ciudadesList[0][1] : 1;
+    const maxDesc  = descList.length ? descList[0][1] : 1;
+    const maxMarca = marcaList.length ? marcaList[0].pct : 1;
 
-    const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Bayer – Informe ${label}</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@400;500;600&display=swap');
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Barlow',sans-serif;background:#F4F8FC;color:#0D1B2A;font-size:13px}
-  .page{max-width:960px;margin:0 auto;padding:28px 32px}
-  /* HEADER */
-  .report-header{background:linear-gradient(135deg,#001E3C,#003865);color:#fff;padding:24px 32px;border-radius:12px;margin-bottom:24px;display:flex;align-items:center;gap:20px}
-  .report-header img{width:56px;height:56px;object-fit:contain}
-  .rh-titles h1{font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:800;letter-spacing:.04em}
-  .rh-titles p{font-size:.8rem;color:#00BCDD;text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
-  .rh-period{margin-left:auto;text-align:right}
-  .rh-period .period{background:rgba(0,188,221,.2);border:1px solid rgba(0,188,221,.4);color:#00BCDD;padding:6px 16px;border-radius:20px;font-size:.8rem;font-weight:700;letter-spacing:.06em}
-  .rh-period .gen{font-size:.7rem;color:rgba(255,255,255,.4);margin-top:6px}
-  /* SECTION */
-  .section-title{font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:800;color:#003865;text-transform:uppercase;letter-spacing:.06em;padding:10px 0 8px;border-bottom:2px solid #00BCDD;margin-bottom:16px;margin-top:28px}
-  /* KPI ROW */
-  .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px}
-  .kpi-box{background:#fff;border-radius:10px;padding:14px 16px;border:1px solid rgba(0,56,101,.1);box-shadow:0 2px 8px rgba(0,0,0,.05);border-top:3px solid #00BCDD}
-  .kpi-box .val{font-family:'Barlow Condensed',sans-serif;font-size:2rem;font-weight:800;color:#001E3C;line-height:1}
-  .kpi-box .lbl{font-size:.68rem;color:#4A6070;text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
-  .kpi-box .sub{font-size:.72rem;color:#00BCDD;font-weight:600;margin-top:3px}
-  /* EMP CARDS */
-  .emp-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
-  .emp-box{background:#fff;border-radius:10px;padding:16px 18px;border:1px solid rgba(0,56,101,.1);box-shadow:0 2px 8px rgba(0,0,0,.05)}
-  .emp-box h3{font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:800;color:#003865;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(0,56,101,.1)}
-  .emp-stat-row{display:flex;gap:20px}
-  .emp-stat .v{font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;font-weight:800;color:#001E3C}
-  .emp-stat .l{font-size:.65rem;color:#4A6070;text-transform:uppercase;letter-spacing:.05em}
-  /* TABLE */
-  table{width:100%;border-collapse:collapse;font-size:.8rem;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05);margin-bottom:20px}
-  th{background:#003865;color:#fff;padding:9px 12px;text-align:left;font-family:'Barlow Condensed',sans-serif;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
-  td{padding:8px 12px;border-bottom:1px solid rgba(0,56,101,.08);color:#0D1B2A;vertical-align:middle}
-  tr:last-child td{border-bottom:none}
-  tr:nth-child(even) td{background:rgba(0,56,101,.025)}
-  .badge-on{background:rgba(165,205,57,.2);color:#4a6e00;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700}
-  .badge-off{background:rgba(255,107,53,.12);color:#b83a0e;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700}
-  /* BAR */
-  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-  .bar-lbl{min-width:130px;font-size:.78rem;font-weight:500;color:#0D1B2A}
-  .bar-wrap{flex:1;background:#E8F0FA;border-radius:4px;height:14px;overflow:hidden}
-  .bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#00BCDD,#A5CD39)}
-  .bar-val{font-size:.76rem;font-weight:700;color:#003865;min-width:44px;text-align:right}
-  /* FOOTER */
-  .report-footer{text-align:center;font-size:.7rem;color:#8AAABF;margin-top:32px;padding-top:16px;border-top:1px solid rgba(0,56,101,.1)}
-  /* PRINT */
-  @media print{
-    body{background:#fff}
-    .page{padding:16px}
-    .no-print{display:none}
-  }
-  @page{size:A4;margin:1.5cm}
-</style>
-</head>
-<body>
-<div class="page">
+    function prom(name) { return name.toUpperCase().includes('FELIX') ? 'Felix R.' : 'Marcelo M.'; }
 
-  <div class="report-header">
-    <div class="rh-titles">
-      <h1>BAYER · INFORME FARMACIAS</h1>
-      <p>Check-in / Check-out · Ofertas · Período: ${label}</p>
-    </div>
-    <div class="rh-period">
-      <div class="period">📅 ${label}</div>
-      <div class="gen">Generado: ${new Date().toLocaleString('es-PY')}</div>
-    </div>
-  </div>
+    // Construir filas de tablas
+    var ciRows = filteredCI.slice(0,60).map(function(r){
+      return '<tr>' +
+        '<td>' + fmtDate(r.fecha) + '</td>' +
+        '<td>' + prom(r.empleado) + '</td>' +
+        '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (r.pdv||'') + '</td>' +
+        '<td>' + (r.ciudad||'') + '</td>' +
+        '<td><strong style="color:#003865">' + (r.checkin||'–') + '</strong></td>' +
+        '<td><strong style="color:#00BCDD">' + (r.checkout||'–') + '</strong></td>' +
+        '<td style="font-family:monospace">' + (fmtTiempo(r.tiempo)||'–') + '</td>' +
+        '<td style="color:' + (r.motivo ? '#FF6B35' : '#8AAABF') + ';font-size:.75rem">' + (r.motivo||'–') + '</td>' +
+        '</tr>';
+    }).join('');
 
-  <!-- ── CHECK-IN / CHECK-OUT ── -->
-  <div class="section-title">📍 Check-in / Check-out</div>
+    var ofRows = conOf.slice(0,50).map(function(r){
+      return '<tr>' +
+        '<td>' + fmtDate(r.fecha) + '</td>' +
+        '<td>' + prom(r.empleado) + '</td>' +
+        '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (r.pdv||'') + '</td>' +
+        '<td>' + (r.ciudad||'') + '</td>' +
+        '<td><strong>' + (r.marca||'') + '</strong></td>' +
+        '<td><strong style="color:#4a6e00">' + (r.valor||'') + '</strong></td>' +
+        '<td><span class="badge-on">Con Oferta</span></td>' +
+        '</tr>';
+    }).join('');
 
-  <div class="kpi-row">
-    <div class="kpi-box"><div class="val">${filteredCI.length}</div><div class="lbl">Total Visitas</div><div class="sub">en el período</div></div>
-    <div class="kpi-box"><div class="val">${felix.length}</div><div class="lbl">Visitas Felix</div><div class="sub">prom ${avgTF.toFixed(0)} min</div></div>
-    <div class="kpi-box"><div class="val">${marcelo.length}</div><div class="lbl">Visitas Marcelo</div><div class="sub">prom ${avgTM.toFixed(0)} min</div></div>
-    <div class="kpi-box"><div class="val">${avgTot.toFixed(0)}'</div><div class="lbl">Prom. PDV</div><div class="sub">todos los promotores</div></div>
-    <div class="kpi-box"><div class="val">${new Set(filteredCI.map(r=>r.pdv)).size}</div><div class="lbl">PDVs Únicos</div><div class="sub">puntos de venta</div></div>
-  </div>
+    var marcaBars = marcaList.slice(0,12).map(function(m){
+      var color = m.pct >= 50 ? 'linear-gradient(90deg,#A5CD39,#00BCDD)' :
+                  m.pct >= 25 ? 'linear-gradient(90deg,#00BCDD,#0057A8)' :
+                                'linear-gradient(90deg,#0057A8,#003865)';
+      return '<div class="bar-row">' +
+        '<span class="bar-lbl" style="font-size:.72rem">' + m.marca + '</span>' +
+        '<div class="bar-wrap"><div class="bar-fill" style="width:' + Math.round(m.pct) + '%;background:' + color + '"></div></div>' +
+        '<span class="bar-val">' + m.pct.toFixed(1) + '%</span>' +
+        '</div>';
+    }).join('');
 
-  <div class="emp-row">
-    <div class="emp-box">
-      <h3>👤 FELIX RECALDE MALDONADO</h3>
-      <div class="emp-stat-row">
-        <div class="emp-stat"><div class="v">${felix.length}</div><div class="l">Visitas</div></div>
-        <div class="emp-stat"><div class="v">${avgTF.toFixed(1)}'</div><div class="l">Prom. PDV</div></div>
-        <div class="emp-stat"><div class="v" style="color:#00BCDD">${filteredCI.length?((felix.length/filteredCI.length)*100).toFixed(0):0}%</div><div class="l">Del total</div></div>
-      </div>
-    </div>
-    <div class="emp-box">
-      <h3>👤 MARCELO ADRIÁN MEZA</h3>
-      <div class="emp-stat-row">
-        <div class="emp-stat"><div class="v">${marcelo.length}</div><div class="l">Visitas</div></div>
-        <div class="emp-stat"><div class="v">${avgTM.toFixed(1)}'</div><div class="l">Prom. PDV</div></div>
-        <div class="emp-stat"><div class="v" style="color:#00BCDD">${filteredCI.length?((marcelo.length/filteredCI.length)*100).toFixed(0):0}%</div><div class="l">Del total</div></div>
-      </div>
-    </div>
-  </div>
+    var dayBars = daysSorted.map(function(d){
+      return '<div class="bar-row">' +
+        '<span class="bar-lbl">' + fmtDate(d) + '</span>' +
+        '<div class="bar-wrap"><div class="bar-fill" style="width:' + Math.round(byDay[d]/maxDay*100) + '%"></div></div>' +
+        '<span class="bar-val">' + byDay[d] + '</span></div>';
+    }).join('');
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-    <div>
-      <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.85rem;color:#003865;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Visitas por Día</div>
-      ${daysSorted.map(d=>`<div class="bar-row"><span class="bar-lbl">${fmtDate(d)}</span><div class="bar-wrap"><div class="bar-fill" style="width:${(byDay[d]/Math.max(...Object.values(byDay))*100).toFixed(0)}%"></div></div><span class="bar-val">${byDay[d]}</span></div>`).join('')}
-    </div>
-    <div>
-      <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.85rem;color:#003865;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Visitas por Ciudad</div>
-      ${ciudadesList.map(([c,n])=>`<div class="bar-row"><span class="bar-lbl">${c}</span><div class="bar-wrap"><div class="bar-fill" style="width:${(n/ciudadesList[0][1]*100).toFixed(0)}%"></div></div><span class="bar-val">${n}</span></div>`).join('')}
-    </div>
-  </div>
+    var ciuBars = ciudadesList.map(function(c){
+      return '<div class="bar-row">' +
+        '<span class="bar-lbl">' + c[0] + '</span>' +
+        '<div class="bar-wrap"><div class="bar-fill" style="width:' + Math.round(c[1]/maxCiu*100) + '%"></div></div>' +
+        '<span class="bar-val">' + c[1] + '</span></div>';
+    }).join('');
 
-  <!-- Tabla check-in -->
-  <table>
-    <thead><tr><th>Fecha</th><th>Promotor</th><th>Punto de Venta</th><th>Ciudad</th><th>Check-in</th><th>Check-out</th><th>Tiempo</th><th>Motivo No Realización</th></tr></thead>
-    <tbody>
-      ${filteredCI.slice(0,50).map(r=>`<tr>
-        <td>${fmtDate(r.fecha)}</td>
-        <td>${r.empleado.includes('FELIX')?'Felix R.':'Marcelo M.'}</td>
-        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.pdv}">${r.pdv}</td>
-        <td>${r.ciudad}</td>
-        <td><strong style="color:#003865">${r.checkin||'–'}</strong></td>
-        <td><strong style="color:#00BCDD">${r.checkout||'–'}</strong></td>
-        <td style="font-family:monospace">${fmtTiempo(r.tiempo)||'–'}</td>
-        <td style="color:${r.motivo?'#FF6B35':'#8AAABF'};font-size:.75rem">${r.motivo||'–'}</td>
-      </tr>`).join('')}
-    </tbody>
-  </table>
-  ${filteredCI.length>50?`<p style="font-size:.75rem;color:#8AAABF;margin-top:-14px;margin-bottom:16px">Mostrando 50 de ${filteredCI.length} registros</p>`:''}
+    var descBars = descList.map(function(d){
+      return '<div class="bar-row">' +
+        '<span class="bar-lbl">' + d[0] + '</span>' +
+        '<div class="bar-wrap"><div class="bar-fill" style="width:' + Math.round(d[1]/maxDesc*100) + '%"></div></div>' +
+        '<span class="bar-val">' + d[1] + '</span></div>';
+    }).join('');
 
-  <!-- ── OFERTAS ── -->
-  <div class="section-title">🏷️ Ofertas en Farmacias</div>
+    var encuestas = new Set(filteredOF.map(function(r){ return r.fecha+'|'+r.pdv; })).size;
+    var cobPct = filteredOF.length ? (conOf.length/filteredOF.length*100).toFixed(1) : '0';
+    var pctF = filteredCI.length ? Math.round(felix.length/filteredCI.length*100) : 0;
+    var pctM = filteredCI.length ? Math.round(marcelo.length/filteredCI.length*100) : 0;
+    var generado = new Date().toLocaleString('es-PY');
 
-  <div class="kpi-row" style="grid-template-columns:repeat(4,1fr)">
-    <div class="kpi-box"><div class="val">${new Set(filteredOF.map(r=>r.fecha+'|'+r.pdv)).size}</div><div class="lbl">Encuestas</div><div class="sub">farmacias relevadas</div></div>
-    <div class="kpi-box"><div class="val">${conOf.length}</div><div class="lbl">Con Oferta</div><div class="sub">registros activos</div></div>
-    <div class="kpi-box"><div class="val">${filteredOF.length-conOf.length}</div><div class="lbl">Sin Oferta</div><div class="sub">registros</div></div>
-    <div class="kpi-box"><div class="val">${filteredOF.length?(conOf.length/filteredOF.length*100).toFixed(1):'0'}%</div><div class="lbl">Cobertura</div><div class="sub">del total relevado</div></div>
-  </div>
+    var css = [
+      "* { margin:0; padding:0; box-sizing:border-box }",
+      "body { font-family: Arial, sans-serif; background:#F4F8FC; color:#0D1B2A; font-size:13px }",
+      ".page { max-width:960px; margin:0 auto; padding:28px 32px }",
+      ".report-header { background:linear-gradient(135deg,#001E3C,#003865); color:#fff; padding:24px 32px; border-radius:12px; margin-bottom:24px }",
+      ".rh-titles h1 { font-size:1.6rem; font-weight:800; letter-spacing:.04em }",
+      ".rh-titles p { font-size:.8rem; color:#00BCDD; text-transform:uppercase; letter-spacing:.08em; margin-top:3px }",
+      ".section-title { font-size:1rem; font-weight:800; color:#003865; text-transform:uppercase; letter-spacing:.06em; padding:10px 0 8px; border-bottom:2px solid #00BCDD; margin-bottom:16px; margin-top:28px }",
+      ".kpi-row { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:20px }",
+      ".kpi-row-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px }",
+      ".kpi-box { background:#fff; border-radius:10px; padding:14px 16px; border:1px solid rgba(0,56,101,.1); box-shadow:0 2px 8px rgba(0,0,0,.05); border-top:3px solid #00BCDD }",
+      ".kpi-box .val { font-size:2rem; font-weight:800; color:#001E3C; line-height:1 }",
+      ".kpi-box .lbl { font-size:.68rem; color:#4A6070; text-transform:uppercase; letter-spacing:.06em; margin-top:4px }",
+      ".kpi-box .sub { font-size:.72rem; color:#00BCDD; font-weight:600; margin-top:3px }",
+      ".emp-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px }",
+      ".emp-box { background:#fff; border-radius:10px; padding:16px 18px; border:1px solid rgba(0,56,101,.1); box-shadow:0 2px 8px rgba(0,0,0,.05) }",
+      ".emp-box h3 { font-size:1rem; font-weight:800; color:#003865; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid rgba(0,56,101,.1) }",
+      ".emp-stat-row { display:flex; gap:20px }",
+      ".emp-stat .v { font-size:1.4rem; font-weight:800; color:#001E3C }",
+      ".emp-stat .l { font-size:.65rem; color:#4A6070; text-transform:uppercase; letter-spacing:.05em }",
+      "table { width:100%; border-collapse:collapse; font-size:.8rem; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.05); margin-bottom:20px }",
+      "th { background:#003865; color:#fff; padding:9px 12px; text-align:left; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em }",
+      "td { padding:8px 12px; border-bottom:1px solid rgba(0,56,101,.08); color:#0D1B2A; vertical-align:middle }",
+      "tr:last-child td { border-bottom:none }",
+      "tr:nth-child(even) td { background:rgba(0,56,101,.025) }",
+      ".badge-on { background:rgba(165,205,57,.2); color:#4a6e00; padding:2px 8px; border-radius:10px; font-size:.68rem; font-weight:700 }",
+      ".two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px }",
+      ".col-title { font-weight:700; font-size:.85rem; color:#003865; text-transform:uppercase; letter-spacing:.05em; margin-bottom:10px }",
+      ".bar-row { display:flex; align-items:center; gap:10px; margin-bottom:8px }",
+      ".bar-lbl { min-width:130px; font-size:.78rem; font-weight:500; color:#0D1B2A }",
+      ".bar-wrap { flex:1; background:#E8F0FA; border-radius:4px; height:14px; overflow:hidden }",
+      ".bar-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,#00BCDD,#A5CD39) }",
+      ".bar-val { font-size:.76rem; font-weight:700; color:#003865; min-width:44px; text-align:right }",
+      ".report-footer { text-align:center; font-size:.7rem; color:#8AAABF; margin-top:32px; padding-top:16px; border-top:1px solid rgba(0,56,101,.1) }",
+      "@media print { body { background:#fff } .page { padding:16px } }",
+      "@page { size:A4; margin:1.5cm }"
+    ].join('\n');
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-    <div>
-      <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.85rem;color:#003865;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">% Farmacias con Oferta por Marca</div>
-      ${marcaList.slice(0,12).map(m=>`<div class="bar-row">
-        <span class="bar-lbl" style="font-size:.72rem">${m.marca}</span>
-        <div class="bar-wrap"><div class="bar-fill" style="width:${m.pct.toFixed(0)}%;background:${m.pct>=50?'linear-gradient(90deg,#A5CD39,#00BCDD)':m.pct>=25?'linear-gradient(90deg,#00BCDD,#0057A8)':'linear-gradient(90deg,#0057A8,#003865)'}"></div></div>
-        <span class="bar-val">${m.pct.toFixed(1)}%</span>
-      </div>`).join('')}
-    </div>
-    <div>
-      <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.85rem;color:#003865;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Tipos de Descuento</div>
-      ${descList.map(([v,c])=>`<div class="bar-row"><span class="bar-lbl">${v}</span><div class="bar-wrap"><div class="bar-fill" style="width:${(c/descList[0][1]*100).toFixed(0)}%"></div></div><span class="bar-val">${c}</span></div>`).join('')}
-    </div>
-  </div>
+    var html = '<!DOCTYPE html>' +
+      '<html lang="es"><head><meta charset="UTF-8">' +
+      '<title>Bayer – Informe ' + label + '</title>' +
+      '<style>' + css + '</style></head><body><div class="page">' +
 
-  <!-- Tabla ofertas activas -->
-  <table>
-    <thead><tr><th>Fecha</th><th>Promotor</th><th>Punto de Venta</th><th>Ciudad</th><th>Marca</th><th>Descuento</th><th>Estado</th></tr></thead>
-    <tbody>
-      ${filteredOF.filter(r=>r.tiene).slice(0,40).map(r=>`<tr>
-        <td>${fmtDate(r.fecha)}</td>
-        <td>${r.empleado.includes('FELIX')?'Felix R.':'Marcelo M.'}</td>
-        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.pdv}">${r.pdv}</td>
-        <td>${r.ciudad}</td>
-        <td><strong>${r.marca}</strong></td>
-        <td><strong style="color:#4a6e00">${r.valor}</strong></td>
-        <td><span class="badge-on">Con Oferta</span></td>
-      </tr>`).join('')}
-    </tbody>
-  </table>
-  ${filteredOF.filter(r=>r.tiene).length>40?`<p style="font-size:.75rem;color:#8AAABF;margin-top:-14px;margin-bottom:16px">Mostrando 40 de ${filteredOF.filter(r=>r.tiene).length} registros con oferta</p>`:''}
+      '<div class="report-header">' +
+        '<div class="rh-titles">' +
+          '<h1>BAYER &middot; INFORME FARMACIAS</h1>' +
+          '<p>Check-in / Check-out &middot; Ofertas &middot; Periodo: ' + label + '</p>' +
+        '</div>' +
+        '<div style="margin-left:auto;text-align:right">' +
+          '<div style="background:rgba(0,188,221,.2);border:1px solid rgba(0,188,221,.4);color:#00BCDD;padding:6px 16px;border-radius:20px;font-size:.8rem;font-weight:700;display:inline-block">&#x1F4C5; ' + label + '</div>' +
+          '<div style="font-size:.7rem;color:rgba(255,255,255,.4);margin-top:6px">Generado: ' + generado + '</div>' +
+        '</div>' +
+      '</div>' +
 
-  <div class="report-footer">
-    Bayer Dashboard Farmacias · Generado el ${new Date().toLocaleString('es-PY')} · Período: ${label}
-  </div>
+      '<div class="section-title">&#x1F4CD; Check-in / Check-out</div>' +
 
-</div>
+      '<div class="kpi-row">' +
+        '<div class="kpi-box"><div class="val">' + filteredCI.length + '</div><div class="lbl">Total Visitas</div><div class="sub">en el periodo</div></div>' +
+        '<div class="kpi-box"><div class="val">' + felix.length + '</div><div class="lbl">Visitas Felix</div><div class="sub">prom ' + avgTF.toFixed(0) + ' min</div></div>' +
+        '<div class="kpi-box"><div class="val">' + marcelo.length + '</div><div class="lbl">Visitas Marcelo</div><div class="sub">prom ' + avgTM.toFixed(0) + ' min</div></div>' +
+        '<div class="kpi-box"><div class="val">' + avgTot.toFixed(0) + "'</div><div class=\"lbl\">Prom. PDV</div><div class=\"sub\">todos los promotores</div></div>" +
+        '<div class="kpi-box"><div class="val">' + new Set(filteredCI.map(function(r){return r.pdv;})).size + '</div><div class="lbl">PDVs Unicos</div><div class="sub">puntos de venta</div></div>' +
+      '</div>' +
 
-<script>window.onload=function(){window.print();}</script>
-</body>
-</html>`;
+      '<div class="emp-row">' +
+        '<div class="emp-box"><h3>&#x1F464; FELIX RECALDE MALDONADO</h3>' +
+          '<div class="emp-stat-row">' +
+            '<div class="emp-stat"><div class="v">' + felix.length + '</div><div class="l">Visitas</div></div>' +
+            '<div class="emp-stat"><div class="v">' + avgTF.toFixed(1) + "'</div><div class=\"l\">Prom. PDV</div></div>" +
+            '<div class="emp-stat"><div class="v" style="color:#00BCDD">' + pctF + '%</div><div class="l">Del total</div></div>' +
+          '</div></div>' +
+        '<div class="emp-box"><h3>&#x1F464; MARCELO ADRIAN MEZA</h3>' +
+          '<div class="emp-stat-row">' +
+            '<div class="emp-stat"><div class="v">' + marcelo.length + '</div><div class="l">Visitas</div></div>' +
+            '<div class="emp-stat"><div class="v">' + avgTM.toFixed(1) + "'</div><div class=\"l\">Prom. PDV</div></div>" +
+            '<div class="emp-stat"><div class="v" style="color:#00BCDD">' + pctM + '%</div><div class="l">Del total</div></div>' +
+          '</div></div>' +
+      '</div>' +
 
-    // Abrir en nueva ventana
-    const win = window.open('', '_blank');
+      '<div class="two-col">' +
+        '<div><div class="col-title">Visitas por Dia</div>' + dayBars + '</div>' +
+        '<div><div class="col-title">Visitas por Ciudad</div>' + ciuBars + '</div>' +
+      '</div>' +
+
+      '<table><thead><tr><th>Fecha</th><th>Promotor</th><th>Punto de Venta</th><th>Ciudad</th><th>Check-in</th><th>Check-out</th><th>Tiempo</th><th>Motivo No Realizacion</th></tr></thead>' +
+      '<tbody>' + ciRows + '</tbody></table>' +
+      (filteredCI.length > 60 ? '<p style="font-size:.75rem;color:#8AAABF;margin-top:-14px;margin-bottom:16px">Mostrando 60 de ' + filteredCI.length + ' registros</p>' : '') +
+
+      '<div class="section-title">&#x1F3F7;&#xFE0F; Ofertas en Farmacias</div>' +
+
+      '<div class="kpi-row-4">' +
+        '<div class="kpi-box"><div class="val">' + encuestas + '</div><div class="lbl">Encuestas</div><div class="sub">farmacias relevadas</div></div>' +
+        '<div class="kpi-box"><div class="val">' + conOf.length + '</div><div class="lbl">Con Oferta</div><div class="sub">registros activos</div></div>' +
+        '<div class="kpi-box"><div class="val">' + (filteredOF.length - conOf.length) + '</div><div class="lbl">Sin Oferta</div><div class="sub">registros</div></div>' +
+        '<div class="kpi-box"><div class="val">' + cobPct + '%</div><div class="lbl">Cobertura</div><div class="sub">del total relevado</div></div>' +
+      '</div>' +
+
+      '<div class="two-col">' +
+        '<div><div class="col-title">% Farmacias con Oferta por Marca</div>' + marcaBars + '</div>' +
+        '<div><div class="col-title">Tipos de Descuento</div>' + descBars + '</div>' +
+      '</div>' +
+
+      '<table><thead><tr><th>Fecha</th><th>Promotor</th><th>Punto de Venta</th><th>Ciudad</th><th>Marca</th><th>Descuento</th><th>Estado</th></tr></thead>' +
+      '<tbody>' + ofRows + '</tbody></table>' +
+      (conOf.length > 50 ? '<p style="font-size:.75rem;color:#8AAABF;margin-top:-14px;margin-bottom:16px">Mostrando 50 de ' + conOf.length + ' registros con oferta</p>' : '') +
+
+      '<div class="report-footer">Bayer Dashboard Farmacias &middot; Generado el ' + generado + ' &middot; Periodo: ' + label + '</div>' +
+
+      '</div><script>window.onload=function(){window.print();}<\/script>' +
+      '</body></html>';
+
+    var win = window.open('', '_blank');
     if (!win) {
-      alert('El navegador bloqueó la ventana emergente.\nPermití las ventanas emergentes para este sitio e intentá de nuevo.');
+      alert('El navegador bloqueo la ventana emergente.\nPermiti las ventanas emergentes para este sitio e intenta de nuevo.');
+      if (btnDL) { btnDL.style.opacity='1'; btnDL.style.pointerEvents='auto'; btnDL.innerHTML=btnOrig; }
       return;
     }
     win.document.write(html);
